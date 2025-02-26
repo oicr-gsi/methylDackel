@@ -1,0 +1,81 @@
+[
+    {
+        "arguments": {
+            "methylDackel.bam": {
+                "contents": {
+                    "configuration": "/.mounts/labs/gsi/testdata/methylDackel/test_inputs/emseq-testg_test2.deduped.bam",
+                    "externalIds": [
+                        {
+                            "id": "TEST",
+                            "provider": "TEST"
+                        }
+                    ]
+                },
+                "type": "EXTERNAL"
+            },
+            "methylDackel.bai": {
+                "contents": {
+                    "configuration": "/.mounts/labs/gsi/testdata/methylDackel/test_inputs/emseq-testg_test2.deduped.bai",
+                    "externalIds": [
+                        {
+                            "id": "TEST",
+                            "provider": "TEST"
+                        }
+                    ]
+                },
+                "type": "EXTERNAL"
+            },
+            "methylDackel.outputFileNamePrefix": "emseq-testg_test2",
+            "methylDackel.reference": "hg38",
+            "methylDackel.methylDackelExtract.modules": null,
+            "methylDackel.methylDackelExtract.memory": null,
+            "methylDackel.methylDackelExtract.timeout": null,
+            "methylDackel.methylDackelExtract.threads": null,
+            "methylDackel.methylDackelExtract.fasta": null,
+            "methylDackel.methylDackelMbias.modules": null,
+            "methylDackel.methylDackelMbias.jobMemory": null,
+            "methylDackel.methylDackelMbias.timeout": null,
+            "methylDackel.methylDackelMbias.threads": null
+        },
+        "description": "methylDackel workflow test",
+        "engineArguments": {
+           "write_to_cache": false,
+           "read_from_cache": false
+        },
+        "id": "methylDackel_test_with_emseq-testg",
+        "metadata": {
+            "methylDackel.extract_bedgraph": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_methylDackel_test_with_emseq-testg_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "methylDackel.combined_mbias_tsv": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_methylDackel_test_with_emseq-testg_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "methylDackel.mbias_svg_files": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_methylDackel_test_with_emseq-testg_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            }
+        },
+        "validators": [
+            {
+                "metrics_calculate": "@CHECKOUT@/tests/calculate.sh",
+                "metrics_compare": "@CHECKOUT@/tests/compare.sh",
+                "output_metrics": "/.mounts/labs/gsi/testdata/methylDackel/output_expectation/methylDackel_test_with_emseq-testg.metrics",
+                "type": "script"
+            }
+        ]
+    }
+]

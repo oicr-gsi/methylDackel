@@ -108,10 +108,12 @@ task methylDackelExtract {
         set -euo pipefail
         MethylDackel extract --mergeContext --CHH --CHG -@ ~{threads} ~{fasta} ~{bam} -o ~{outputFileNamePrefix}.methyldackel
         gzip *.bedGraph
+        mkdir -p ~{outputFileNamePrefix}_extract_bedGraph
+        mv *.bedGraph.gz ~{outputFileNamePrefix}_extract_bedGraph
     >>>
 
     output {
-        Array[File] out = glob("*.bedGraph.gz")
+        Array[File] out = glob("~{outputFileNamePrefix}_extract_bedGraph/*.bedGraph.gz")
     }
 
     meta {
@@ -185,16 +187,19 @@ task methylDackelMbias {
 
         MethylDackel mbias -r ${chrs[0]} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias_cpg
         for f in *cpg*.svg; do sed -i "s/Strand<\\/text>/Strand $f ${chrs[0]} CpG<\\/text>/" $f; done;
+        mkdir -p ~{outputFileNamePrefix}_mbias_svg_files
+        mv *.svg ~{outputFileNamePrefix}_mbias_svg_files
     >>>
 
     output {
         File combined_mbias_tsv = "~{outputFileNamePrefix}_combined_mbias.tsv"
-        Array[File] mbias_svg_files = glob("*.svg")
+        Array[File] mbias_svg_files = glob("~{outputFileNamePrefix}_mbias_svg_files/*.svg")
     }
+    
     meta {
         output_meta: {
             combined_mbias_tsv: "mbias tsv output from methylDackelMbias",
-            mbias_svg_files: "svg plot files from methylDackelMbias",
+            mbias_svg_files: "svg plot files from methylDackelMbias"
         }
     }
     
