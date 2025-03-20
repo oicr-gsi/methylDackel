@@ -87,7 +87,7 @@ task methylDackelExtract {
         File bai
         String outputFileNamePrefix
         String fasta
-        Int timeout = 6
+        Int timeout = 12
         Int memory = 8
         Int threads = 8
         String modules
@@ -137,7 +137,7 @@ task methylDackelMbias {
         File bai
         String fasta
         String modules
-        Int timeout = 6
+        Int timeout = 48
         Int memory = 8
         Int threads = 8
     }
