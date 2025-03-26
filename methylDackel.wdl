@@ -228,9 +228,9 @@ task methylDackelMbias {
     command <<<
        MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias > output_mbias.tsv
 
-       mkdir -p ~{outputFileNamePrefix}_mbias.svg
-       mv *.svg ~{outputFileNamePrefix}_mbias.svg
-       tar -czf ~{outputFileNamePrefix}_mbias.svgs.tar.gz ~{outputFileNamePrefix}_mbias.svg
+       mkdir -p ~{outputFileNamePrefix}_mbias.svgs
+       mv *.svg ~{outputFileNamePrefix}_mbias.svgs
+       tar -czf ~{outputFileNamePrefix}_mbias.svgs.tar.gz ~{outputFileNamePrefix}_mbias.svgs
     >>>
 
     output {
