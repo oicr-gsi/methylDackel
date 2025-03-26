@@ -52,14 +52,15 @@ workflow methylDackel {
                     bai = bai,
                     chr = chr,
                     fasta = ref.fasta,
+                    outputFileNamePrefix = outputFileNamePrefix,
                     modules = "methyldackel/0.6.1 samtools/1.16.1 ~{ref.genomeModule}"
             }
         }      
     
-        Array[File?] mbiasTsvs = select_first([methylDackelMbias.mbias_tsv])
-        Array[Array[File?]] mbiasSvg = select_first([methylDackelMbias.mbias_svg_files])
+        Array[File?] mbiasTsvs = methylDackelMbias.mbias_tsv
+        Array[Array[File?]] mbiasSvg = methylDackelMbias.mbias_svg_files
 
-        call concatenateTsvFiles {
+        call concatMbiasTsvFiles {
             input:
                 inputTsvs = mbiasTsvs,
                 outputFileNamePrefix = outputFileNamePrefix
@@ -94,8 +95,8 @@ workflow methylDackel {
 
     output {
         Array[File] extract_bedgraph = methylDackelExtract.out
-        File? mbias_tsv = concatenateTsvFiles.combinedTsv
-        Array[File?] mbias_svg = mbiasSvg[0]
+        File? mbias_tsv = concatMbiasTsvFiles.combinedTsv
+        Array[File?] mbias_svg = select_first([mbiasSvg])[0]
     }
 }
 
@@ -116,7 +117,7 @@ task extractChromosomes {
     }
 
     command <<<
-        samtools view -H ~{bam} | grep @SQ | cut -f2 | sed 's/SN://' | grep -E -v '(_random|chrUn|chrM|MT|_alt|_fix|_decoy|_PATCH|_HSCHR|NC_|_EBV|phiX|pUC19|lambda|_scaffold)'
+        samtools view -H ~{bam} | grep @SQ | cut -f2 | sed 's/SN://' | grep -E -v '(_random|chrUn|chrM|MT|_alt|_fix|_decoy|_PATCH|_HSCHR|NC_|_EBV|EBV|phiX|pUC19|lambda|_scaffold)'
     >>>
 
     output {
@@ -140,8 +141,9 @@ task methylDackelExtract {
         Boolean doCHH = false
         Boolean doCHG = false
         Boolean mergeContext = false
-        Int minimumuQalityPhred = 5
-        Int minimumMAPQ = 10
+        Int? minimumuQalityPhred = 5
+        Int? minimumMAPQ = 10
+        Int? minDepth = 10
         Int timeout = 12
         Int memory = 8
         Int threads = 8
@@ -164,10 +166,13 @@ task methylDackelExtract {
     String optionCHH = if doCHH then "--CHH" else ""
     String optionCHG = if doCHG then "--CHG" else ""
     String optionMergeContext = if mergeContext then "--mergeContext" else ""
+    String filterMAPQ = if defined(minimumMAPQ) then "-q ~{minimumMAPQ}" else ""
+    String filterQalityPhred = if defined(minimumuQalityPhred) then "-p ~{minimumuQalityPhred}" else ""
+    String filterminDepth = if defined(minDepth) then "--minDepth ~{minDepth}" else ""
 
     command <<<
         set -euo pipefail
-        MethylDackel extract -q {minimumMAPQ} -p ~{minimumuQalityPhred} ~{optionMergeContext} ~{optionCHH} ~{optionCHG} -@ ~{threads} ~{fasta} ~{bam} -o ~{outputFileNamePrefix}.methyldackel
+        MethylDackel extract ~{filterMAPQ} ~{filterQalityPhred} ~{filterminDepth} ~{optionMergeContext} ~{optionCHH} ~{optionCHG} -@ ~{threads} ~{fasta} ~{bam} -o ~{outputFileNamePrefix}.methyldackel
         gzip *.bedGraph
         mkdir -p ~{outputFileNamePrefix}_extract_bedGraph
         mv *.bedGraph.gz ~{outputFileNamePrefix}_extract_bedGraph
@@ -197,6 +202,7 @@ task methylDackelMbias {
         File bai
         String chr
         String fasta
+        String outputFileNamePrefix
         String modules
         Int timeout = 48
         Int memory = 8
@@ -208,6 +214,7 @@ task methylDackelMbias {
         bai: "The .bai index of the bam file"
         chr: "The region to call methylDackel mbias"
         fasta: "FastA file used for alignment"
+        outputFileNamePrefix: "Output file name prefix"
         timeout: "The hours until the task is killed"
         memory: "The GB of memory provided to the task"
         threads: "The number of threads the task has access to"
@@ -215,12 +222,12 @@ task methylDackelMbias {
     }
 
     command <<<
-       MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} output.mbias > output_mbias.tsv
+       MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias > output_mbias.tsv
     >>>
 
     output {
         File? mbias_tsv = "output_mbias.tsv"
-        Array[File?] mbias_svg_files = ["output.mbias_OT.svg", "output.mbias_OB.svg"]
+        Array[File?] mbias_svg_files = ["~{outputFileNamePrefix}.mbias_OT.svg", "~{outputFileNamePrefix}.mbias_OB.svg"]
     }
     
     meta {
@@ -238,19 +245,57 @@ task methylDackelMbias {
     }
 }
 
-task concatenateTsvFiles {
+task concatMbiasTsvFiles {
     input {
         Array[File?] inputTsvs
         String outputFileNamePrefix
+        Int timeout = 1
+        Int memory = 1
+        Int threads = 1
+        String modules = "pandas/2.1.3"
+    }
+    parameter_meta {
+        inputTsvs: "Array of mbias tsv files"
+        outputFileNamePrefix: "Output file name prefix"
+        timeout: "The hours until the task is killed"
+        memory: "The GB of memory provided to the task"
+        threads: "The number of threads the task has access to"
+        modules: "The modules that will be loaded"
     }
 
     command <<<
-        for tsv in ~{sep=' ' select_all(inputTsvs)}; do
-            cat "$tsv"
-        done >> ~{outputFileNamePrefix}.combined.tsv
+        python3<<CODE
+
+        import sys
+        import pandas as pd
+
+        dfs = []
+        input_files = ['~{sep="', '" select_all(inputTsvs)}']
+        columns = ['Strand', 'Read', 'Position', 'nMethylated', 'nUnmethylated']
+        for file in input_files:
+            df = pd.read_csv(file, sep='\t', skiprows=1, names=columns)  # Skip header
+            dfs.append(df)
+
+        combined_df = pd.concat(dfs, ignore_index=True)
+
+        # Group by Strand, Read, and Position, and sum the methylation counts
+        aggregated_df = combined_df.groupby(['Strand', 'Read', 'Position'], as_index=False).agg({
+            'nMethylated': 'sum',
+            'nUnmethylated': 'sum'
+        }).sort_values(['Strand', 'Read', 'Position'])
+
+        with open("~{outputFileNamePrefix}.mbias.tsv", 'w') as f:
+            aggregated_df.to_csv(f, sep='\t', index=False)
+        CODE
     >>>
 
     output {
-        File combinedTsv = "~{outputFileNamePrefix}.combined.tsv"
+        File combinedTsv = "~{outputFileNamePrefix}.mbias.tsv"
+    }
+    runtime {
+        modules: "~{modules}"
+        memory:  "~{memory} GB"
+        cpu:     "~{threads}"
+        timeout: "~{timeout}"
     }
 }
