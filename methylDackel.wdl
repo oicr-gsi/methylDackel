@@ -19,6 +19,7 @@ workflow methylDackel {
         bai: "The index for input bam"
         outputFileNamePrefix: "Prefix for output files"
         reference: "The genome reference build"
+        doMbias: "Whether run Mbias or not "
     }
 
     Map[String, GenomeResources] resources = {
@@ -70,7 +71,7 @@ workflow methylDackel {
     meta {
         author: "Gavin Peng"
         email: "gpeng@oicr.on.ca"
-        description: "Workflow to run bwa-meth, the fast aligner for EM-seq/BS-Seq reads. Prior to alignment, adatper trimming and quality filtering are performed. Readgroup information to be injected into the bam header needs to be provided.  The workflow can also split the input data into a requested number of chunks, align each separately then merge the separate alignments into a single bam file.  This decreases the workflow run time. Final bam file also applied markDuplicates."
+        description: "Workflow to run methylDackel, will process a coordinate-sorted and indexed BAM or CRAM file containing some form of BS-seq or EM-seq alignments and extract per-base methylation metrics from them. The extract task generates bedGraph files, by default generates only CpG metrics, option can be set to also generate CHH and CHG metrics. Mbias task generates tsv file for methylation bias metrics and a svg graph for visualizing mbias (only for chromosome 1 here)."
         dependencies: [
          {
             name: "methyldackel/0.6.1",
@@ -82,7 +83,7 @@ workflow methylDackel {
                 description: "bedGraph output from methylDackelExtract",
                 vidarr_label: "extract_bedgraph"
             },
-            combined_mbias_tsv: {
+            mbias_tsv: {
                 description: "mbias tsv output from methylDackelMbias",
                 vidarr_label: "combined_mbias_tsv"
             },
@@ -141,10 +142,10 @@ task methylDackelExtract {
         Boolean doCHH = false
         Boolean doCHG = false
         Boolean mergeContext = false
-        Int? minimumuQalityPhred = 5
-        Int? minimumMAPQ = 10
-        Int? minDepth = 10
-        Int timeout = 12
+        Int? minimumuQualityPhred
+        Int? minimumMAPQ
+        Int? minDepth 
+        Int timeout = 8
         Int memory = 8
         Int threads = 8
         String modules
@@ -157,7 +158,10 @@ task methylDackelExtract {
         fasta: "FastA file used for alignment"
         doCHH: "whether enable CHH metrics"
         doCHG: "whether enable CHG metrics"
-        mergeContext: "whther merge context in bedgraph"
+        mergeContext: "whether merge context in bedgraph"
+        minimumuQualityPhred: "minimumu sequencing quality phred score"
+        minimumMAPQ: "minimum MAPQ score"
+        minDepth: "region with minimum depth needed to be included in analysis"
         timeout: "The hours until the task is killed"
         memory: "The GB of memory provided to the task"
         threads: "The number of threads the task has access to"
@@ -167,7 +171,7 @@ task methylDackelExtract {
     String optionCHG = if doCHG then "--CHG" else ""
     String optionMergeContext = if mergeContext then "--mergeContext" else ""
     String filterMAPQ = if defined(minimumMAPQ) then "-q ~{minimumMAPQ}" else ""
-    String filterQalityPhred = if defined(minimumuQalityPhred) then "-p ~{minimumuQalityPhred}" else ""
+    String filterQalityPhred = if defined(minimumuQualityPhred) then "-p ~{minimumuQualityPhred}" else ""
     String filterminDepth = if defined(minDepth) then "--minDepth ~{minDepth}" else ""
 
     command <<<

@@ -32,10 +32,22 @@
             "methylDackel.methylDackelExtract.timeout": null,
             "methylDackel.methylDackelExtract.threads": null,
             "methylDackel.methylDackelExtract.fasta": null,
+            "methylDackel.methylDackelExtract.minimumuQualityPhred": null,
+            "methylDackel.methylDackelExtract.minimumMAPQ": null,
+            "methylDackel.methylDackelExtract.minDepth": null,
+            "methylDackel.methylDackelExtract.mergeContext": null,
+            "methylDackel.methylDackelExtract.doCHG": null,
+            "methylDackel.methylDackelExtract.d0CHH": null,
             "methylDackel.methylDackelMbias.modules": null,
             "methylDackel.methylDackelMbias.memory": null,
             "methylDackel.methylDackelMbias.timeout": null,
-            "methylDackel.methylDackelMbias.threads": null
+            "methylDackel.methylDackelMbias.threads": null,
+            "methylDackel.concatMbiasTsvFiles.threads": null,
+            "methylDackel.concatMbiasTsvFiles.timeout": null,
+            "methylDackel.concatMbiasTsvFiles.memory": null,
+            "methylDackel.extractChromosomes.threads": null,
+            "methylDackel.extractChromosomes.timeout": null,
+            "methylDackel.extractChromosomes.memory": null
         },
         "description": "methylDackel workflow test",
         "engineArguments": {
@@ -52,7 +64,7 @@
                 ],
                 "type": "ALL"
             },
-            "methylDackel.combined_mbias_tsv": {
+            "methylDackel.mbias_tsv": {
                 "contents": [
                     {
                         "outputDirectory": "@SCRATCH@/@DATE@_Workflow_methylDackel_test_with_emseq-testg_@JENKINSID@"
@@ -60,7 +72,7 @@
                 ],
                 "type": "ALL"
             },
-            "methylDackel.mbias_svg_files": {
+            "methylDackel.mbias_svg": {
                 "contents": [
                     {
                         "outputDirectory": "@SCRATCH@/@DATE@_Workflow_methylDackel_test_with_emseq-testg_@JENKINSID@"
