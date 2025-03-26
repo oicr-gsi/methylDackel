@@ -204,7 +204,7 @@ task methylDackelMbias {
         String fasta
         String outputFileNamePrefix
         String modules
-        Int timeout = 48
+        Int timeout = 12
         Int memory = 8
         Int threads = 8
     }
