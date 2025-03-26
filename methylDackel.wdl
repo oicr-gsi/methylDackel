@@ -59,7 +59,7 @@ workflow methylDackel {
         }      
     
         Array[File?] mbiasTsvs = methylDackelMbias.mbias_tsv
-        Array[Array[File?]] mbiasSvg = methylDackelMbias.mbias_svg_files
+        Array[File?] mbiasSvg = methylDackelMbias.mbias_svg_files
 
         call concatMbiasTsvFiles {
             input:
@@ -95,9 +95,9 @@ workflow methylDackel {
     }
 
     output {
-        Array[File] extract_bedgraph = methylDackelExtract.out
+        File extract_bedgraph = methylDackelExtract.out
         File? mbias_tsv = concatMbiasTsvFiles.combinedTsv
-        Array[File?] mbias_svg = select_first([mbiasSvg])[0]
+        File? mbias_svg = select_first([mbiasSvg])[0]
     }
 }
 
@@ -180,10 +180,11 @@ task methylDackelExtract {
         gzip *.bedGraph
         mkdir -p ~{outputFileNamePrefix}_extract_bedGraph
         mv *.bedGraph.gz ~{outputFileNamePrefix}_extract_bedGraph
+        tar -czf ~{outputFileNamePrefix}_extract_bedGraph.tar.gz ~{outputFileNamePrefix}_extract_bedGraph
     >>>
 
     output {
-        Array[File] out = glob("~{outputFileNamePrefix}_extract_bedGraph/*.bedGraph.gz")
+        File out = "~{outputFileNamePrefix}_extract_bedGraph.tar.gz"
     }
 
     meta {
@@ -227,11 +228,15 @@ task methylDackelMbias {
 
     command <<<
        MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias > output_mbias.tsv
+
+       mkdir -p ~{outputFileNamePrefix}_mbias.svg
+       mv *.svg ~{outputFileNamePrefix}_mbias.svg
+       tar -czf ~{outputFileNamePrefix}_mbias.svgs.tar.gz ~{outputFileNamePrefix}_mbias.svg
     >>>
 
     output {
         File? mbias_tsv = "output_mbias.tsv"
-        Array[File?] mbias_svg_files = ["~{outputFileNamePrefix}.mbias_OT.svg", "~{outputFileNamePrefix}.mbias_OB.svg"]
+        File? mbias_svg_files = "~{outputFileNamePrefix}_mbias.svgs.tar.gz"
     }
     
     meta {

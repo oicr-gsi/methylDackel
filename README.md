@@ -62,14 +62,15 @@ Parameter|Value|Default|Description
 
 Output | Type | Description | Labels
 ---|---|---|---
-`extract_bedgraph`|Array[File]|bedGraph output from methylDackelExtract|vidarr_label: extract_bedgraph
+`extract_bedgraph`|File|bedGraph output from methylDackelExtract|vidarr_label: extract_bedgraph
 `mbias_tsv`|File?|mbias tsv output from methylDackelMbias|vidarr_label: combined_mbias_tsv
-`mbias_svg`|Array[File?]|svg plot files from methylDackelMbias|vidarr_label: mbias_svg_files
+`mbias_svg`|File?|svg plot files from methylDackelMbias|vidarr_label: mbias_svg_files
 
 ## Commands
 This section lists command(s) run by methylDackel workflow
 
 * Running methylDackel
+
 
 ```
         samtools view -H ~{bam} | grep @SQ | cut -f2 | sed 's/SN://' | grep -E -v '(_random|chrUn|chrM|MT|_alt|_fix|_decoy|_PATCH|_HSCHR|NC_|_EBV|EBV|phiX|pUC19|lambda|_scaffold)'
@@ -80,9 +81,14 @@ This section lists command(s) run by methylDackel workflow
         gzip *.bedGraph
         mkdir -p ~{outputFileNamePrefix}_extract_bedGraph
         mv *.bedGraph.gz ~{outputFileNamePrefix}_extract_bedGraph
+        tar -czf ~{outputFileNamePrefix}_extract_bedGraph.tar.gz ~{outputFileNamePrefix}_extract_bedGraph
 ```
 ```
        MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias > output_mbias.tsv
+
+       mkdir -p ~{outputFileNamePrefix}_mbias.svg
+       mv *.svg ~{outputFileNamePrefix}_mbias.svg
+       tar -czf ~{outputFileNamePrefix}_mbias.svgs.tar.gz ~{outputFileNamePrefix}_mbias.svg
 ```
 ```
         python3<<CODE
@@ -109,6 +115,7 @@ This section lists command(s) run by methylDackel workflow
             aggregated_df.to_csv(f, sep='\t', index=False)
         CODE
 ```
+
 
 ## Support
 
