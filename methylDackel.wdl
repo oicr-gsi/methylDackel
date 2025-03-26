@@ -85,11 +85,11 @@ workflow methylDackel {
             },
             mbias_tsv: {
                 description: "mbias tsv output from methylDackelMbias",
-                vidarr_label: "combined_mbias_tsv"
+                vidarr_label: "mbias_tsv"
             },
             mbias_svg: {
                 description: "svg plot files from methylDackelMbias",
-                vidarr_label: "mbias_svg_files"
+                vidarr_label: "mbias_svg"
             }
         }
     }
@@ -177,9 +177,8 @@ task methylDackelExtract {
     command <<<
         set -euo pipefail
         MethylDackel extract ~{filterMAPQ} ~{filterQalityPhred} ~{filterminDepth} ~{optionMergeContext} ~{optionCHH} ~{optionCHG} -@ ~{threads} ~{fasta} ~{bam} -o ~{outputFileNamePrefix}.methyldackel
-        gzip *.bedGraph
         mkdir -p ~{outputFileNamePrefix}_extract_bedGraph
-        mv *.bedGraph.gz ~{outputFileNamePrefix}_extract_bedGraph
+        mv *.bedGraph ~{outputFileNamePrefix}_extract_bedGraph
         tar -czf ~{outputFileNamePrefix}_extract_bedGraph.tar.gz ~{outputFileNamePrefix}_extract_bedGraph
     >>>
 
