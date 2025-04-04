@@ -43,7 +43,7 @@ Parameter|Value|Default|Description
 `methylDackelExtract.minimumMAPQ`|Int?|None|minimum MAPQ score
 `methylDackelExtract.minDepth`|Int?|None|region with minimum depth needed to be included in analysis
 `methylDackelExtract.timeout`|Int|8|The hours until the task is killed
-`methylDackelExtract.memory`|Int|8|The GB of memory provided to the task
+`methylDackelExtract.memory`|Int|16|The GB of memory provided to the task
 `methylDackelExtract.threads`|Int|8|The number of threads the task has access to
 `extractChromosomes.timeout`|Int|1|The hours until the task is killed
 `extractChromosomes.memory`|Int|1|The GB of memory provided to the task
@@ -62,60 +62,76 @@ Parameter|Value|Default|Description
 
 Output | Type | Description | Labels
 ---|---|---|---
-`extract_bedgraph`|File|bedGraph output from methylDackelExtract|vidarr_label: extract_bedgraph
+`extract_CpGbedgraph`|File|The MethylDackel result bedGraph for CpG sequence context|
+`extract_CHGbedgraph`|File?|The MethylDackel result bedGraph for CHG sequence context|
+`extract_CHHbedgraph`|File?|The MethylDackel result bedGraph for CHH sequence context|
 `mbias_tsv`|File?|mbias tsv output from methylDackelMbias|vidarr_label: mbias_tsv
 `mbias_svg`|File?|svg plot files from methylDackelMbias|vidarr_label: mbias_svg
 
-
 ## Commands
- This section lists command(s) run by methylDackel workflow
- 
- * Running methylDackel
- 
- 
- ```
-         samtools view -H ~{bam} | grep @SQ | cut -f2 | sed 's/SN://' | grep -E -v '(_random|chrUn|chrM|MT|_alt|_fix|_decoy|_PATCH|_HSCHR|NC_|_EBV|EBV|phiX|pUC19|lambda|_scaffold)'
- ```
- ```
-         set -euo pipefail
-         MethylDackel extract ~{filterMAPQ} ~{filterQalityPhred} ~{filterminDepth} ~{optionMergeContext} ~{optionCHH} ~{optionCHG} -@ ~{threads} ~{fasta} ~{bam} -o ~{outputFileNamePrefix}.methyldackel
-         mkdir -p ~{outputFileNamePrefix}_extract_bedGraph
-         mv *.bedGraph ~{outputFileNamePrefix}_extract_bedGraph
-         tar -czf ~{outputFileNamePrefix}_extract_bedGraph.tar.gz ~{outputFileNamePrefix}_extract_bedGraph
- ```
- ```
-        MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias > output_mbias.tsv
- 
+This section lists command(s) run by methylDackel workflow
+
+* Running methylDackel
+
+```
+        samtools view -H ~{bam} | grep @SQ | cut -f2 | sed 's/SN://' | grep -E -v '(_random|chrUn|chrM|MT|_alt|_fix|_decoy|_PATCH|_HSCHR|NC_|_EBV|EBV|phiX|pUC19|lambda|_scaffold)'
+```
+```
+        set -euo pipefail
+        MethylDackel extract ~{filterMAPQ} ~{filterQalityPhred} ~{filterminDepth} ~{optionMergeContext} ~{optionCHH} ~{optionCHG} -@ ~{threads} ~{fasta} ~{bam} -o ~{outputFileNamePrefix}.methyldackel
+        
+```
+```
+        qsub_output=$(qsub -cwd -P gsi -b y -N methylDackelJob -o methylDackel.out -e methylDackel.err \
+            "module load hg38-em-seq methyldackel; MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias > output_mbias.tsv")
+
+        jobID=$(echo "$qsub_output" | sed -n 's/.*Your job \([0-9]\+\) .*/\1/p')
+
+        if [[ -z "$jobID" ]]; then
+            echo "Failed to extract job ID from qsub output: $qsub_output"
+            exit 1
+        fi
+
+        while qstat | grep -q "^ *$jobID "; do
+            sleep 10
+        done
+        
+        # waiting for output file written to disk
+        sync
+        sleep 30
+        
+    
         mkdir -p ~{outputFileNamePrefix}_mbias.svgs
         mv *.svg ~{outputFileNamePrefix}_mbias.svgs
         tar -czf ~{outputFileNamePrefix}_mbias.svgs.tar.gz ~{outputFileNamePrefix}_mbias.svgs
- ```
- ```
-         python3<<CODE
- 
-         import sys
-         import pandas as pd
- 
-         dfs = []
-         input_files = ['~{sep="', '" select_all(inputTsvs)}']
-         columns = ['Strand', 'Read', 'Position', 'nMethylated', 'nUnmethylated']
-         for file in input_files:
-             df = pd.read_csv(file, sep='\t', skiprows=1, names=columns)  # Skip header
-             dfs.append(df)
- 
-         combined_df = pd.concat(dfs, ignore_index=True)
- 
-         # Group by Strand, Read, and Position, and sum the methylation counts
-         aggregated_df = combined_df.groupby(['Strand', 'Read', 'Position'], as_index=False).agg({
-             'nMethylated': 'sum',
-             'nUnmethylated': 'sum'
-         }).sort_values(['Strand', 'Read', 'Position'])
- 
-         with open("~{outputFileNamePrefix}.mbias.tsv", 'w') as f:
-             aggregated_df.to_csv(f, sep='\t', index=False)
-         CODE
- ```
- ## Support
+```
+```
+        python3<<CODE
+
+        import sys
+        import pandas as pd
+
+        dfs = []
+        input_files = ['~{sep="', '" select_all(inputTsvs)}']
+        columns = ['Strand', 'Read', 'Position', 'nMethylated', 'nUnmethylated']
+        for file in input_files:
+            df = pd.read_csv(file, sep='\t', skiprows=1, names=columns)  # Skip header
+            dfs.append(df)
+
+        combined_df = pd.concat(dfs, ignore_index=True)
+
+        # Group by Strand, Read, and Position, and sum the methylation counts
+        aggregated_df = combined_df.groupby(['Strand', 'Read', 'Position'], as_index=False).agg({
+            'nMethylated': 'sum',
+            'nUnmethylated': 'sum'
+        }).sort_values(['Strand', 'Read', 'Position'])
+
+        with open("~{outputFileNamePrefix}.mbias.tsv", 'w') as f:
+            aggregated_df.to_csv(f, sep='\t', index=False)
+        CODE
+```
+
+## Support
 
 For support, please file an issue on the [Github project](https://github.com/oicr-gsi) or send an email to gsi@oicr.on.ca .
 

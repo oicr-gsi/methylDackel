@@ -59,7 +59,23 @@
         },
         "id": "methylDackel_test_with_emseq-testg",
         "metadata": {
-            "methylDackel.extract_bedgraph": {
+            "methylDackel.extract_CpGbedgraph": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_methylDackel_test_with_emseq-testg_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "methylDackel.extract_CHGbedgraph": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_methylDackel_test_with_emseq-testg_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "methylDackel.extract_CHHbedgraph": {
                 "contents": [
                     {
                         "outputDirectory": "@SCRATCH@/@DATE@_Workflow_methylDackel_test_with_emseq-testg_@JENKINSID@"

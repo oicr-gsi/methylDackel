@@ -3,23 +3,37 @@ This section lists command(s) run by methylDackel workflow
 
 * Running methylDackel
 
-
 ```
         samtools view -H ~{bam} | grep @SQ | cut -f2 | sed 's/SN://' | grep -E -v '(_random|chrUn|chrM|MT|_alt|_fix|_decoy|_PATCH|_HSCHR|NC_|_EBV|EBV|phiX|pUC19|lambda|_scaffold)'
 ```
 ```
         set -euo pipefail
         MethylDackel extract ~{filterMAPQ} ~{filterQalityPhred} ~{filterminDepth} ~{optionMergeContext} ~{optionCHH} ~{optionCHG} -@ ~{threads} ~{fasta} ~{bam} -o ~{outputFileNamePrefix}.methyldackel
-        mkdir -p ~{outputFileNamePrefix}_extract_bedGraph
-        mv *.bedGraph ~{outputFileNamePrefix}_extract_bedGraph
-        tar -czf ~{outputFileNamePrefix}_extract_bedGraph.tar.gz ~{outputFileNamePrefix}_extract_bedGraph
+        
 ```
 ```
-       MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias > output_mbias.tsv
+        qsub_output=$(qsub -cwd -P gsi -b y -N methylDackelJob -o methylDackel.out -e methylDackel.err \
+            "module load hg38-em-seq methyldackel; MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias > output_mbias.tsv")
 
-       mkdir -p ~{outputFileNamePrefix}_mbias.svgs
-       mv *.svg ~{outputFileNamePrefix}_mbias.svgs
-       tar -czf ~{outputFileNamePrefix}_mbias.svgs.tar.gz ~{outputFileNamePrefix}_mbias.svgs
+        jobID=$(echo "$qsub_output" | sed -n 's/.*Your job \([0-9]\+\) .*/\1/p')
+
+        if [[ -z "$jobID" ]]; then
+            echo "Failed to extract job ID from qsub output: $qsub_output"
+            exit 1
+        fi
+
+        while qstat | grep -q "^ *$jobID "; do
+            sleep 10
+        done
+        
+        # waiting for output file written to disk
+        sync
+        sleep 30
+        
+    
+        mkdir -p ~{outputFileNamePrefix}_mbias.svgs
+        mv *.svg ~{outputFileNamePrefix}_mbias.svgs
+        tar -czf ~{outputFileNamePrefix}_mbias.svgs.tar.gz ~{outputFileNamePrefix}_mbias.svgs
 ```
 ```
         python3<<CODE
