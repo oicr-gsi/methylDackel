@@ -61,6 +61,10 @@ workflow methylDackel {
         Array[File?] mbiasTsvs = methylDackelMbias.mbias_tsv
         Array[File?] mbiasSvg = methylDackelMbias.mbias_svg_files
 
+        if (length(mbiasSvg) > 0) {
+            File? mbias_svg_output = mbiasSvg[0]
+        }
+
         call concatMbiasTsvFiles {
             input:
                 inputTsvs = mbiasTsvs,
@@ -95,9 +99,11 @@ workflow methylDackel {
     }
 
     output {
-        File extract_bedgraph = methylDackelExtract.out
+        File extract_CpGbedgraph = methylDackelExtract.CpG_graph
+        File? extract_CHGbedgraph = methylDackelExtract.CHG_graph
+        File? extract_CHHbedgraph = methylDackelExtract.CHH_graph
         File? mbias_tsv = concatMbiasTsvFiles.combinedTsv
-        File? mbias_svg = select_first([mbiasSvg])[0]
+        File? mbias_svg = mbias_svg_output
     }
 }
 
@@ -146,7 +152,7 @@ task methylDackelExtract {
         Int? minimumMAPQ
         Int? minDepth 
         Int timeout = 8
-        Int memory = 8
+        Int memory = 16
         Int threads = 8
         String modules
     }
@@ -174,21 +180,23 @@ task methylDackelExtract {
     String filterQalityPhred = if defined(minimumuQualityPhred) then "-p ~{minimumuQualityPhred}" else ""
     String filterminDepth = if defined(minDepth) then "--minDepth ~{minDepth}" else ""
 
-    command <<<
+     command <<<
         set -euo pipefail
         MethylDackel extract ~{filterMAPQ} ~{filterQalityPhred} ~{filterminDepth} ~{optionMergeContext} ~{optionCHH} ~{optionCHG} -@ ~{threads} ~{fasta} ~{bam} -o ~{outputFileNamePrefix}.methyldackel
-        mkdir -p ~{outputFileNamePrefix}_extract_bedGraph
-        mv *.bedGraph ~{outputFileNamePrefix}_extract_bedGraph
-        tar -czf ~{outputFileNamePrefix}_extract_bedGraph.tar.gz ~{outputFileNamePrefix}_extract_bedGraph
+        
     >>>
 
     output {
-        File out = "~{outputFileNamePrefix}_extract_bedGraph.tar.gz"
+        File CpG_graph = "~{outputFileNamePrefix}.methyldackel_CpG.bedGraph"
+        File? CHG_graph = "~{outputFileNamePrefix}.methyldackel_CHG.bedGraph"
+        File? CHH_graph = "~{outputFileNamePrefix}.methyldackel_CHH.bedGraph"
     }
 
     meta {
         output_meta: {
-            out: "The compressed MethylDackel result bedGraph"
+            CpG_graph: "The MethylDackel result bedGraph for CpG sequence context",
+            CHG_graph: "The MethylDackel result bedGraph for CHG sequence context",
+            CHH_graph: "The MethylDackel result bedGraph for CHH sequence context"
         }
     }
 
@@ -226,11 +234,28 @@ task methylDackelMbias {
     }
 
     command <<<
-       MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias > output_mbias.tsv
+        qsub_output=$(qsub -cwd -P gsi -b y -N methylDackelJob -o methylDackel.out -e methylDackel.err \
+            "module load hg38-em-seq methyldackel; MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias > output_mbias.tsv")
 
-       mkdir -p ~{outputFileNamePrefix}_mbias.svgs
-       mv *.svg ~{outputFileNamePrefix}_mbias.svgs
-       tar -czf ~{outputFileNamePrefix}_mbias.svgs.tar.gz ~{outputFileNamePrefix}_mbias.svgs
+        jobID=$(echo "$qsub_output" | sed -n 's/.*Your job \([0-9]\+\) .*/\1/p')
+
+        if [[ -z "$jobID" ]]; then
+            echo "Failed to extract job ID from qsub output: $qsub_output"
+            exit 1
+        fi
+
+        while qstat | grep -q "^ *$jobID "; do
+            sleep 10
+        done
+        
+        # waiting for output file written to disk
+        sync
+        sleep 30
+        
+    
+        mkdir -p ~{outputFileNamePrefix}_mbias.svgs
+        mv *.svg ~{outputFileNamePrefix}_mbias.svgs
+        tar -czf ~{outputFileNamePrefix}_mbias.svgs.tar.gz ~{outputFileNamePrefix}_mbias.svgs
     >>>
 
     output {
