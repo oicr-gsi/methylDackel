@@ -82,28 +82,8 @@ This section lists command(s) run by methylDackel workflow
         
 ```
 ```
-        qsub_output=$(qsub -cwd -P gsi -b y -N methylDackelJob -o methylDackel.out -e methylDackel.err \
-            "module load hg38-em-seq methyldackel; MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias > output_mbias.tsv")
-
-        jobID=$(echo "$qsub_output" | sed -n 's/.*Your job \([0-9]\+\) .*/\1/p')
-
-        if [[ -z "$jobID" ]]; then
-            echo "Failed to extract job ID from qsub output: $qsub_output"
-            exit 1
-        fi
-
-        while qstat | grep -q "^ *$jobID "; do
-            sleep 10
-        done
-        
-        # waiting for output file written to disk
-        sync
-        sleep 30
-        
-    
-        mkdir -p ~{outputFileNamePrefix}_mbias.svgs
-        mv *.svg ~{outputFileNamePrefix}_mbias.svgs
-        tar -czf ~{outputFileNamePrefix}_mbias.svgs.tar.gz ~{outputFileNamePrefix}_mbias.svgs
+        MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias > output_mbias.tsv
+        tar  -czf ~{outputFileNamePrefix}_mbias.svgs.tar.gz *.svg
 ```
 ```
         python3<<CODE
@@ -130,6 +110,7 @@ This section lists command(s) run by methylDackel workflow
             aggregated_df.to_csv(f, sep='\t', index=False)
         CODE
 ```
+
 
 ## Support
 
