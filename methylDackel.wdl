@@ -231,7 +231,7 @@ task methylDackelMbias {
     }
 
     command <<<
-        MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias > output_mbias.tsv
+        MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}_~{chr}.mbias > output_mbias.tsv
         tar  -czf ~{outputFileNamePrefix}_~{chr}_mbias.svgs.tar.gz *.svg
     >>>
 
