@@ -52,67 +52,66 @@ Parameter|Value|Default|Description
 `methylDackelMbias.timeout`|Int|12|The hours until the task is killed
 `methylDackelMbias.memory`|Int|8|The GB of memory provided to the task
 `methylDackelMbias.threads`|Int|8|The number of threads the task has access to
-`concatMbiasTsvFiles.timeout`|Int|1|The hours until the task is killed
-`concatMbiasTsvFiles.memory`|Int|1|The GB of memory provided to the task
-`concatMbiasTsvFiles.threads`|Int|1|The number of threads the task has access to
-`concatMbiasTsvFiles.modules`|String|"pandas/2.1.3"|The modules that will be loaded
+`concatMbiasFiles.timeout`|Int|1|The hours until the task is killed
+`concatMbiasFiles.memory`|Int|1|The GB of memory provided to the task
+`concatMbiasFiles.threads`|Int|1|The number of threads the task has access to
+`concatMbiasFiles.modules`|String|"pandas/2.1.3"|The modules that will be loaded
 
 
 ### Outputs
 
 Output | Type | Description | Labels
 ---|---|---|---
-`extract_CpGbedgraph`|File|The MethylDackel result bedGraph for CpG sequence context|
-`extract_CHGbedgraph`|File?|The MethylDackel result bedGraph for CHG sequence context|
-`extract_CHHbedgraph`|File?|The MethylDackel result bedGraph for CHH sequence context|
+`extract_CpGbedgraph`|File|CpGbedGraph output from methylDackelExtract|vidarr_label: extract_CpGbedgraph
+`extract_CHGbedgraph`|File?|CHGbedGraph output from methylDackelExtract|vidarr_label: extract_CHGbedgraph
+`extract_CHHbedgraph`|File?|CHHbedGraph output from methylDackelExtract|vidarr_label: extract_CHHbedgraph
 `mbias_tsv`|File?|mbias tsv output from methylDackelMbias|vidarr_label: mbias_tsv
 `mbias_svg`|File?|svg plot files from methylDackelMbias|vidarr_label: mbias_svg
 
+
 ## Commands
-This section lists command(s) run by methylDackel workflow
-
-* Running methylDackel
-
-```
-        samtools view -H ~{bam} | grep @SQ | cut -f2 | sed 's/SN://' | grep -E -v '(_random|chrUn|chrM|MT|_alt|_fix|_decoy|_PATCH|_HSCHR|NC_|_EBV|EBV|phiX|pUC19|lambda|_scaffold)'
-```
-```
-        set -euo pipefail
-        MethylDackel extract ~{filterMAPQ} ~{filterQalityPhred} ~{filterminDepth} ~{optionMergeContext} ~{optionCHH} ~{optionCHG} -@ ~{threads} ~{fasta} ~{bam} -o ~{outputFileNamePrefix}.methyldackel
-        
-```
-```
-        MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias > output_mbias.tsv
-        tar  -czf ~{outputFileNamePrefix}_mbias.svgs.tar.gz *.svg
-```
-```
-        python3<<CODE
-
-        import sys
-        import pandas as pd
-
-        dfs = []
-        input_files = ['~{sep="', '" select_all(inputTsvs)}']
-        columns = ['Strand', 'Read', 'Position', 'nMethylated', 'nUnmethylated']
-        for file in input_files:
-            df = pd.read_csv(file, sep='\t', skiprows=1, names=columns)  # Skip header
-            dfs.append(df)
-
-        combined_df = pd.concat(dfs, ignore_index=True)
-
-        # Group by Strand, Read, and Position, and sum the methylation counts
-        aggregated_df = combined_df.groupby(['Strand', 'Read', 'Position'], as_index=False).agg({
-            'nMethylated': 'sum',
-            'nUnmethylated': 'sum'
-        }).sort_values(['Strand', 'Read', 'Position'])
-
-        with open("~{outputFileNamePrefix}.mbias.tsv", 'w') as f:
-            aggregated_df.to_csv(f, sep='\t', index=False)
-        CODE
-```
-
-
-## Support
+ This section lists command(s) run by methylDackel workflow
+ 
+ * Running methylDackel
+ 
+ ```
+         samtools view -H ~{bam} | grep @SQ | cut -f2 | sed 's/SN://' | grep -E -v '(_random|chrUn|chrM|MT|_alt|_fix|_decoy|_PATCH|_HSCHR|NC_|_EBV|EBV|phiX|pUC19|lambda|_scaffold)'
+ ```
+ ```
+         set -euo pipefail
+         MethylDackel extract ~{filterMAPQ} ~{filterQalityPhred} ~{filterminDepth} ~{optionMergeContext} ~{optionCHH} ~{optionCHG} -@ ~{threads} ~{fasta} ~{bam} -o ~{outputFileNamePrefix}.methyldackel
+         
+ ```
+ ```
+         MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias > output_mbias.tsv
+         tar  -czf ~{outputFileNamePrefix}_mbias.svgs.tar.gz *.svg
+ ```
+ ```
+         python3<<CODE
+ 
+         import sys
+         import pandas as pd
+ 
+         dfs = []
+         input_files = ['~{sep="', '" select_all(inputTsvs)}']
+         columns = ['Strand', 'Read', 'Position', 'nMethylated', 'nUnmethylated']
+         for file in input_files:
+             df = pd.read_csv(file, sep='\t', skiprows=1, names=columns)  # Skip header
+             dfs.append(df)
+ 
+         combined_df = pd.concat(dfs, ignore_index=True)
+ 
+         # Group by Strand, Read, and Position, and sum the methylation counts
+         aggregated_df = combined_df.groupby(['Strand', 'Read', 'Position'], as_index=False).agg({
+             'nMethylated': 'sum',
+             'nUnmethylated': 'sum'
+         }).sort_values(['Strand', 'Read', 'Position'])
+ 
+         with open("~{outputFileNamePrefix}.mbias.tsv", 'w') as f:
+             aggregated_df.to_csv(f, sep='\t', index=False)
+         CODE
+ ```
+ ## Support
 
 For support, please file an issue on the [Github project](https://github.com/oicr-gsi) or send an email to gsi@oicr.on.ca .
 

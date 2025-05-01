@@ -80,9 +80,17 @@ workflow methylDackel {
                         }
         ]
         output_meta: {
-            extract_bedgraph: {
-                description: "bedGraph output from methylDackelExtract",
-                vidarr_label: "extract_bedgraph"
+            extract_CpGbedgraph: {
+                description: "CpGbedGraph output from methylDackelExtract",
+                vidarr_label: "extract_CpGbedgraph"
+            },
+            extract_CHGbedgraph: {
+                description: "CHGbedGraph output from methylDackelExtract",
+                vidarr_label: "extract_CHGbedgraph"
+            },
+            extract_CHHbedgraph: {
+                description: "CHHbedGraph output from methylDackelExtract",
+                vidarr_label: "extract_CHHbedgraph"
             },
             mbias_tsv: {
                 description: "mbias tsv output from methylDackelMbias",
