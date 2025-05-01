@@ -59,15 +59,12 @@ workflow methylDackel {
         }      
     
         Array[File?] mbiasTsvs = methylDackelMbias.mbias_tsv
-        Array[File?] mbiasSvg = methylDackelMbias.mbias_svg_files
+        Array[File?] mbiasSvgs = methylDackelMbias.mbias_svg_files
 
-        if (length(mbiasSvg) > 0) {
-            File? mbias_svg_output = mbiasSvg[0]
-        }
-
-        call concatMbiasTsvFiles {
+        call concatMbiasFiles {
             input:
                 inputTsvs = mbiasTsvs,
+                inputSvgs = mbiasSvgs,
                 outputFileNamePrefix = outputFileNamePrefix
         }
     }
@@ -102,8 +99,8 @@ workflow methylDackel {
         File extract_CpGbedgraph = methylDackelExtract.CpG_graph
         File? extract_CHGbedgraph = methylDackelExtract.CHG_graph
         File? extract_CHHbedgraph = methylDackelExtract.CHH_graph
-        File? mbias_tsv = concatMbiasTsvFiles.combinedTsv
-        File? mbias_svg = mbias_svg_output
+        File? mbias_tsv = concatMbiasFiles.combinedTsv
+        File? mbias_svg = concatMbiasFiles.combinedSvg
     }
 }
 
@@ -235,12 +232,12 @@ task methylDackelMbias {
 
     command <<<
         MethylDackel mbias --txt -r ~{chr} ~{fasta} ~{bam} ~{outputFileNamePrefix}.mbias > output_mbias.tsv
-        tar  -czf ~{outputFileNamePrefix}_mbias.svgs.tar.gz *.svg
+        tar  -czf ~{outputFileNamePrefix}_~{chr}_mbias.svgs.tar.gz *.svg
     >>>
 
     output {
         File? mbias_tsv = "output_mbias.tsv"
-        File? mbias_svg_files = "~{outputFileNamePrefix}_mbias.svgs.tar.gz"
+        File? mbias_svg_files = "~{outputFileNamePrefix}_~{chr}_mbias.svgs.tar.gz"
     }
     
     meta {
@@ -258,9 +255,10 @@ task methylDackelMbias {
     }
 }
 
-task concatMbiasTsvFiles {
+task concatMbiasFiles {
     input {
         Array[File?] inputTsvs
+        Array[File?] inputSvgs
         String outputFileNamePrefix
         Int timeout = 1
         Int memory = 1
@@ -269,6 +267,7 @@ task concatMbiasTsvFiles {
     }
     parameter_meta {
         inputTsvs: "Array of mbias tsv files"
+        inputSvgs: "Array of tar.gz of svg files"
         outputFileNamePrefix: "Output file name prefix"
         timeout: "The hours until the task is killed"
         memory: "The GB of memory provided to the task"
@@ -281,11 +280,13 @@ task concatMbiasTsvFiles {
 
         import sys
         import pandas as pd
+        import tarfile
 
         dfs = []
-        input_files = ['~{sep="', '" select_all(inputTsvs)}']
+        input_tsv_files = ['~{sep="', '" select_all(inputTsvs)}']
+
         columns = ['Strand', 'Read', 'Position', 'nMethylated', 'nUnmethylated']
-        for file in input_files:
+        for file in input_tsv_files:
             df = pd.read_csv(file, sep='\t', skiprows=1, names=columns)  # Skip header
             dfs.append(df)
 
@@ -299,11 +300,24 @@ task concatMbiasTsvFiles {
 
         with open("~{outputFileNamePrefix}.mbias.tsv", 'w') as f:
             aggregated_df.to_csv(f, sep='\t', index=False)
+
+        input_svg_files = ['~{sep="', '" select_all(inputSvgs)}']
+        output_tar = "~{outputFileNamePrefix}.mbias.svg.tar.gz"
+
+        with tarfile.open(output_tar, "w:gz") as out_tar:
+            for file in input_svg_files:
+                with tarfile.open(file, "r:gz") as tar:
+                    for member in tar.getmembers():
+                        f = tar.extractfile(member)
+                        if f is not None:
+                            out_tar.addfile(member, f)
+
         CODE
     >>>
 
     output {
         File combinedTsv = "~{outputFileNamePrefix}.mbias.tsv"
+        File combinedSvg = "~{outputFileNamePrefix}.mbias.svg.tar.gz"
     }
     runtime {
         modules: "~{modules}"
