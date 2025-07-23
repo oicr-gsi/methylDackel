@@ -104,7 +104,7 @@
             {
                 "metrics_calculate": "@CHECKOUT@/tests/calculate.sh",
                 "metrics_compare": "@CHECKOUT@/tests/compare.sh",
-                "output_metrics": "/.mounts/labs/gsi/testdata/methylDackel/output_expectation/methylDackel_test_with_emseq-testg.metrics",
+                "output_metrics": "/.mounts/labs/gsi/testdata/methylDackel/output_metrics/workflow_test_01.metrics",
                 "type": "script"
             }
         ]
